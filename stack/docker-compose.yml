@@ -1,0 +1,65 @@
+# Automation stack: Qdrant + Ollama (Mistral 7B) + n8n.
+# Part 5 of automation-money-guide-research.html, corrected for current images:
+#   - no Qdrant curl healthcheck (the image has no curl; endpoint is /healthz)
+#   - no qdrant-config.yaml mount (the guide never creates it)
+#   - Qdrant API key uses the real variable, QDRANT__SERVICE__API_KEY
+#   - n8n: basic auth removed in 1.0 (owner account is created on first visit),
+#     WEBHOOK_TUNNEL_URL -> WEBHOOK_URL, secure cookie off for plain http
+#   - limits sized from .env for the 12GB / 4-core VM
+#
+# Services reach each other by name: n8n uses http://qdrant:6333 and
+# http://ollama:11434.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:?set QDRANT_API_KEY in .env}
+    cpus: ${QDRANT_CPUS:-1}
+    mem_limit: ${QDRANT_MEM:-1536m}
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    # Ollama has no auth, so it is only published on the VM itself.
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    cpus: ${OLLAMA_CPUS:-3}
+    mem_limit: ${OLLAMA_MEM:-6g}
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=sqlite
+      - N8N_SECURE_COOKIE=false
+      - N8N_HOST=${N8N_HOST:-ai}
+      - WEBHOOK_URL=http://${N8N_HOST:-ai}:5678/
+      - GENERIC_TIMEZONE=${TZ:-Africa/Johannesburg}
+      - TZ=${TZ:-Africa/Johannesburg}
+      - NODE_OPTIONS=--max-old-space-size=${N8N_HEAP_MB:-1024}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    cpus: ${N8N_CPUS:-1}
+    mem_limit: ${N8N_MEM:-1536m}
+    depends_on:
+      - qdrant
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  qdrant_storage:
+  ollama_models:
+  n8n_data:
