@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Deploy the automation stack (Qdrant + Ollama + n8n) to /opt/automation,
+# Deploy the automation stack (Qdrant + Ollama + n8n + WAHA) to /opt/automation,
 # pull the model, then run the guide's Part 5 checks.
 #
 #   sudo bash deploy.sh
 #
-# Safe to re-run: keeps an existing .env (and its Qdrant key) and only
-# refreshes docker-compose.yml.
+# Safe to re-run: keeps an existing .env and its secrets, adds any settings
+# that are new since it was created, and refreshes docker-compose.yml.
 
 set -euo pipefail
 
@@ -24,14 +24,27 @@ cd "$DIR"
 echo "==> Fetching compose file"
 curl -fsSL "$RAW/docker-compose.yml" -o docker-compose.yml
 
+curl -fsSL "$RAW/.env.example" -o .env.example
 if [[ ! -f .env ]]; then
-  echo "==> Creating .env with a new Qdrant API key"
-  curl -fsSL "$RAW/.env.example" -o .env
-  sed -i "s/^QDRANT_API_KEY=.*/QDRANT_API_KEY=$(openssl rand -hex 32)/" .env
-  chmod 600 .env
+  echo "==> Creating .env"
+  cp .env.example .env
 else
-  echo "==> Keeping existing .env"
+  echo "==> Keeping existing .env, adding new settings"
+  # Append any variable the template has and .env lacks (e.g. WAHA_* on an
+  # older install). Existing values are never touched.
+  while IFS= read -r line; do
+    [[ $line =~ ^([A-Z_]+)= ]] || continue
+    grep -q "^${BASH_REMATCH[1]}=" .env || { echo "$line" >> .env; echo "    added ${BASH_REMATCH[1]}"; }
+  done < .env.example
 fi
+# Fill every empty secret with a new random value.
+for key in QDRANT_API_KEY WAHA_API_KEY WAHA_DASHBOARD_PASSWORD WAHA_HOOK_SECRET; do
+  if grep -q "^${key}=$" .env; then
+    sed -i "s/^${key}=$/${key}=$(openssl rand -hex 32)/" .env
+    echo "    generated ${key}"
+  fi
+done
+chmod 600 .env
 # shellcheck disable=SC1091
 source .env
 
@@ -61,6 +74,7 @@ echo "==> Checks"
 printf '  Qdrant:  '; curl -fs http://localhost:6333/healthz || echo "NOT OK"; echo
 printf '  Ollama:  '; docker exec ollama ollama list | tail -n +2 | awk '{print $1, $3, $4}' | paste -sd' ' || echo "NOT OK"
 printf '  n8n:     '; curl -fs http://localhost:5678/healthz || echo "NOT OK"; echo
+printf '  WAHA:    '; curl -fs -H "X-Api-Key: $WAHA_API_KEY" http://localhost:3000/api/server/version || echo "NOT OK"; echo
 echo
 docker compose ps
 echo
@@ -70,4 +84,5 @@ echo
 echo "Done."
 echo "  n8n:              http://${N8N_HOST:-ai}:5678   (create the owner account on first visit)"
 echo "  Qdrant dashboard: http://${N8N_HOST:-ai}:6333/dashboard   (API key in $DIR/.env)"
-echo "  In n8n, use Qdrant URL http://qdrant:6333 and Ollama URL http://ollama:11434"
+echo "  WhatsApp:         http://${N8N_HOST:-ai}:3000/dashboard   (user admin, password WAHA_DASHBOARD_PASSWORD in $DIR/.env)"
+echo "  In n8n, use Qdrant URL http://qdrant:6333, Ollama URL http://ollama:11434, WAHA URL http://waha:3000"

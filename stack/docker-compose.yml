@@ -1,4 +1,4 @@
-# Automation stack: Qdrant + Ollama (Mistral 7B) + n8n.
+# Automation stack: Qdrant + Ollama (Mistral 7B) + n8n + WAHA (WhatsApp).
 # Part 5 of automation-money-guide-research.html, corrected for current images:
 #   - no Qdrant curl healthcheck (the image has no curl; endpoint is /healthz)
 #   - no qdrant-config.yaml mount (the guide never creates it)
@@ -7,8 +7,11 @@
 #     WEBHOOK_TUNNEL_URL -> WEBHOOK_URL, secure cookie off for plain http
 #   - limits sized from .env for the 12GB / 4-core VM
 #
-# Services reach each other by name: n8n uses http://qdrant:6333 and
-# http://ollama:11434.
+# Services reach each other by name: n8n uses http://qdrant:6333,
+# http://ollama:11434 and http://waha:3000; WAHA posts to http://n8n:5678.
+#
+# Memory: every service has a cap, and the budget is in docs/SYSTEM-DESIGN.md.
+# Ollama is the only large consumer, so it unloads its model when idle.
 
 services:
   qdrant:
@@ -33,6 +36,11 @@ services:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama_models:/root/.ollama
+    environment:
+      # Free the model's RAM (Mistral: ~4.4GB) after this long without a request.
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-2m}
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_NUM_PARALLEL=1
     cpus: ${OLLAMA_CPUS:-3}
     mem_limit: ${OLLAMA_MEM:-6g}
     restart: unless-stopped
@@ -50,6 +58,15 @@ services:
       - GENERIC_TIMEZONE=${TZ:-Africa/Johannesburg}
       - TZ=${TZ:-Africa/Johannesburg}
       - NODE_OPTIONS=--max-old-space-size=${N8N_HEAP_MB:-1024}
+      # Every workflow shares this one process, so keep its history small:
+      # failed runs are kept for a week, successful ones are not stored.
+      # (Pruning and on-disk binary data are already n8n 2.x defaults.)
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_MAX_AGE=168
+      - EXECUTIONS_DATA_PRUNE_MAX_COUNT=2000
+      - N8N_CONCURRENCY_PRODUCTION_LIMIT=${N8N_CONCURRENCY:-5}
+      - DB_SQLITE_VACUUM_ON_STARTUP=true
     volumes:
       - n8n_data:/home/node/.n8n
     cpus: ${N8N_CPUS:-1}
@@ -59,7 +76,38 @@ services:
       - ollama
     restart: unless-stopped
 
+  waha:
+    # WhatsApp HTTP API. The GOWS engine talks to WhatsApp directly, with no
+    # Chromium, which is what keeps it small. Sessions live in a volume, so no
+    # database is needed.
+    image: devlikeapro/waha:gows-${WAHA_VERSION:-2026.9.2}
+    container_name: waha
+    ports:
+      - "3000:3000"
+    environment:
+      - WHATSAPP_DEFAULT_ENGINE=GOWS
+      - WAHA_API_KEY=${WAHA_API_KEY:?set WAHA_API_KEY in .env}
+      - WAHA_DASHBOARD_USERNAME=admin
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD:?set WAHA_DASHBOARD_PASSWORD in .env}
+      - WHATSAPP_SWAGGER_USERNAME=admin
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WHATSAPP_RESTART_ALL_SESSIONS=True
+      # Every message, including ones you send yourself (message.any), goes to
+      # n8n. The secret header lets n8n reject anything not sent by WAHA.
+      - WHATSAPP_HOOK_URL=http://n8n:5678/webhook/whatsapp
+      - WHATSAPP_HOOK_EVENTS=message.any,session.status
+      - WHATSAPP_HOOK_CUSTOM_HEADERS=X-Waha-Secret:${WAHA_HOOK_SECRET:?set WAHA_HOOK_SECRET in .env}
+      # Don't download photos/voice notes into every webhook; fetch on demand.
+      - WAHA_EVENTS_DOWNLOAD_MEDIA=false
+      - TZ=${TZ:-Africa/Johannesburg}
+    volumes:
+      - waha_sessions:/app/.sessions
+    cpus: ${WAHA_CPUS:-0.5}
+    mem_limit: ${WAHA_MEM:-768m}
+    restart: unless-stopped
+
 volumes:
   qdrant_storage:
   ollama_models:
   n8n_data:
+  waha_sessions:
