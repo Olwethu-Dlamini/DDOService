@@ -33,7 +33,7 @@ else
   # Append any variable the template has and .env lacks (e.g. WAHA_* on an
   # older install). Existing values are never touched.
   while IFS= read -r line; do
-    [[ $line =~ ^([A-Z_]+)= ]] || continue
+    [[ $line =~ ^([A-Z0-9_]+)= ]] || continue
     grep -q "^${BASH_REMATCH[1]}=" .env || { echo "$line" >> .env; echo "    added ${BASH_REMATCH[1]}"; }
   done < .env.example
 fi
