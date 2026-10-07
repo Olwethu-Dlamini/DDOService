@@ -153,9 +153,9 @@ misbehaving service is killed and restarted instead of starving the rest.
 | Service | Cap | Measured | How measured |
 |---|---|---|---|
 | Ollama | 6GB | **6.0GB peak** with Mistral loaded (it filled its cap); ~0 when unloaded | cgroup `memory.peak` on the VM, 2026-10-07 |
-| n8n | 1.5GB | 543MB now, 773MB peak | cgroup on the VM, 2026-10-07 |
+| n8n | 1.5GB | 543MB after a day running, 773MB peak; 324MB just after a restart | cgroup on the VM, and `docker stats` from `deploy.sh`, 2026-10-07 |
 | Qdrant | 1.5GB | 92MB (no collections yet) | cgroup on the VM, 2026-10-07 |
-| WAHA | 768MB | 300MB with a session waiting for its QR code; not yet measured once linked | `docker stats` on the laptop, gows-2026.9.2 |
+| WAHA | 768MB | **408MB on the VM**, 40s after start, no session yet; 300MB on the laptop with a session waiting for its QR code; not yet measured once linked | `docker stats` from `deploy.sh` on the VM, and on the laptop, gows-2026.9.2 |
 | Whole VM | 12GB | 1.2GB used in total, containers included, with Mistral unloaded | `free -m` on the VM, 2026-10-07 |
 
 **The rules that keep it inside 12GB:**
@@ -235,7 +235,7 @@ Each figure states what was measured, where, and when.
 | Mistral 7B read speed | 41 tokens in 2.5s, about 16 tokens/s | Same request | 2026-10-07 |
 | Mistral cold load | 48.1s | Same request, model not in memory | 2026-10-07 |
 | Estimated RAG chatbot reply | 1.5-3 minutes | **Estimate, not measured**: ~1,500 tokens read + an agent that calls the model twice | 2026-10-07 |
-| WAHA memory | 300MB | `docker stats`, laptop, session waiting for a QR code | 2026-10-07 |
+| WAHA memory | 300MB laptop / 408MB VM | `docker stats`; laptop with a session waiting for a QR code, VM with no session | 2026-10-07 |
 
 ---
 
