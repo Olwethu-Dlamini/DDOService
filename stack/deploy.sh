@@ -69,6 +69,12 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
+echo "==> Waiting for WAHA"
+for _ in $(seq 1 60); do
+  curl -fs -o /dev/null -H "X-Api-Key: $WAHA_API_KEY" http://localhost:3000/api/server/version && break
+  sleep 2
+done
+
 echo
 echo "==> Checks"
 printf '  Qdrant:  '; curl -fs http://localhost:6333/healthz || echo "NOT OK"; echo
