@@ -155,7 +155,7 @@ misbehaving service is killed and restarted instead of starving the rest.
 | Ollama | 6GB | **6.0GB peak** with Mistral loaded (it filled its cap); ~0 when unloaded | cgroup `memory.peak` on the VM, 2026-10-07 |
 | n8n | 1.5GB | 543MB after a day running, 773MB peak; 324MB just after a restart | cgroup on the VM, and `docker stats` from `deploy.sh`, 2026-10-07 |
 | Qdrant | 1.5GB | 92MB (no collections yet) | cgroup on the VM, 2026-10-07 |
-| WAHA | 768MB | **408MB on the VM**, 40s after start, no session yet; 300MB on the laptop with a session waiting for its QR code; not yet measured once linked | `docker stats` from `deploy.sh` on the VM, and on the laptop, gows-2026.9.2 |
+| WAHA | 768MB | **350MB of its own memory** once linked and synced; the cgroup reads 765MB because 386MB more is disk cache from the sync, which the kernel reclaims (it hit the cap 711 times with 0 OOM kills and 54ms of total stall). Before linking: 408MB on the VM, 300MB on the laptop | cgroup `memory.stat` (`anon`), `memory.events`, `memory.pressure` on the VM after linking, 2026-10-07 |
 | Whole VM | 12GB | 1.2GB used in total, containers included, with Mistral unloaded | `free -m` on the VM, 2026-10-07 |
 
 **The rules that keep it inside 12GB:**
@@ -171,6 +171,14 @@ misbehaving service is killed and restarted instead of starving the rest.
    runs a full Chromium browser.
 4. **Every new service or workflow records its measured cost in the table above** before its cap
    is set.
+5. **Measure a service's own memory, not the cgroup's total.** The cgroup counts disk cache too,
+   and a busy container fills its cap with cache that the kernel simply reclaims. The number that
+   matters is `anon` in `memory.stat`; trouble shows as `oom_kill` in `memory.events` or rising
+   `memory.pressure`, not as a full cap. On the VM, as any user:
+   ```
+   d=/sys/fs/cgroup/system.slice/docker-$(sudo docker inspect -f '{{.Id}}' waha).scope
+   grep -E '^(anon|file) ' $d/memory.stat; cat $d/memory.events
+   ```
 
 ### One shared model
 
