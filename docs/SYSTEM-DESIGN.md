@@ -222,6 +222,11 @@ add a new entry rather than editing the old one.
 | 2026-10-02 | Checking the stack | `docker: command not found` | The commands ran on the Proxmox host (`root@pve`), not the VM (`root@ai`). **Lesson:** read the prompt before running anything |
 | 2026-10-02 | Backups | The guide's script compressed twice, copied live database files, used an uninstalled `mail` | Rewrote as `backup/backup.sh`, tested snapshot and restore on the laptop |
 | 2026-10-07 | WhatsApp | Evolution API needs Postgres and a cache: 3 containers for one job | Switched to WAHA (D7), verified on the laptop that its webhook carries the secret header |
+| 2026-10-07 | First deploy with WAHA | `deploy.sh` printed `WAHA: NOT OK` | WAHA was fine; the check ran before it finished starting. Added a wait. **Lesson:** a health check needs a wait loop, or it reports a race as a failure |
+| 2026-10-07 | n8n credentials | The script's hidden key prompt got 401 although the key worked | Nothing was visible while pasting, so a paste carrying terminal codes or nothing at all looked fine. The script now strips paste codes and spaces and prints the key's length and last 6 characters. **Lesson:** a silent prompt must confirm what it received |
+| 2026-10-07 | Linking WhatsApp | Long commands pasted into SSH broke: the terminal wrapped lines inside quotes, dropped a space (`-qO-https://...`), and added `^[[200~` paste codes | Put the steps in a script (`stack/whatsapp-link.sh`) and ran it as `wget <url>` then `sudo bash <file>`. **Lesson:** anything longer than one short line goes in a script, not a paste |
+| 2026-10-07 | Linking WhatsApp | The WAHA dashboard's worker loaded forever ("please connect a server first") | Reproduced in headless Chromium: the dashboard stores its servers in the browser's `localStorage`, and its built-in server uses the key `admin`, so WAHA answered 401. Writing the real key into `localStorage` fixed it. The phone was linked without the dashboard, by pairing code |
+| 2026-10-07 | First message through the router | The owner's self-chat message was ignored | WhatsApp gives each account a hidden id (`...@lid`) besides the phone number. In the self-chat, WAHA's GOWS engine sends `to: null` and names the chat only in `_data.Info.Chat`, by that hidden id. The router now matches either id. **Lesson:** build parsing against a real captured payload, not the docs' example |
 
 ---
 
@@ -257,7 +262,6 @@ Each figure states what was measured, where, and when.
 
 ## 10. Open items
 
-- Deploy the WAHA stack change on the VM and link the WhatsApp number.
 - Measure WAHA after linking and adjust its cap.
 - Build the payment-reminder workflows (section 4); designed in the private repo's `dstv/README.md`.
 - Run the backup on the VM and choose off-site storage.
