@@ -65,6 +65,16 @@ flowchart TB
 | Services | n8n, WAHA, Ollama, Qdrant | Section 3 |
 | Workflows | Built in n8n | Where the actual automation lives |
 
+### Where workflows live
+
+Workflows are stored in **n8n's own database** on the VM, not as files, so nothing on the server
+runs `git pull`. They are created and changed in the n8n editor or through n8n's API, and each one
+is then exported as JSON and committed to the private `n8n-chatbot` repo, one folder per project
+(`dstv/`, `realnet-chatbot/`, `shared/`). Git is their history and their backup.
+
+The stack itself is updated by re-running `stack/deploy.sh`, which fetches the current files from
+this repo.
+
 ---
 
 ## 3. The services
@@ -162,6 +172,18 @@ misbehaving service is killed and restarted instead of starving the rest.
 4. **Every new service or workflow records its measured cost in the table above** before its cap
    is set.
 
+### One shared model
+
+Every workflow that uses AI calls the same Ollama through one n8n credential, `Ollama (local)`.
+There is only ever one copy of a model in memory. Two consequences to design around:
+
+- **Requests queue.** Ollama answers one request at a time (`OLLAMA_NUM_PARALLEL=1`). At about 3
+  tokens a second, a second workflow can wait minutes. Workflows that must answer quickly should
+  not depend on the model.
+- **Two models swap.** RAG needs an embedding model as well as the chat model. With
+  `OLLAMA_MAX_LOADED_MODELS=1`, every question would unload Mistral to embed, then reload it (48s).
+  When the RAG chatbot moves here, raise it to 2 and measure the embedding model's memory first.
+
 Planned: a watchdog workflow that messages the owner when any service passes 85% of its cap.
 
 ---
@@ -237,6 +259,6 @@ Each figure states what was measured, where, and when.
 
 - Deploy the WAHA stack change on the VM and link the WhatsApp number.
 - Measure WAHA after linking and adjust its cap.
-- Build the payment-reminder workflows (section 4); their workflow JSON goes in a private repo.
+- Build the payment-reminder workflows (section 4); designed in the private repo's `dstv/README.md`.
 - Run the backup on the VM and choose off-site storage.
 - Watchdog workflow for memory (section 5).
