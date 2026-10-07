@@ -22,11 +22,23 @@ fi
 source "$DIR/.env"
 
 # stdin is this script when piped from wget, so read the key from the terminal.
-read -rsp "n8n API key: " KEY </dev/tty
+# The prompt shows nothing while you paste; the line after it confirms what arrived.
+read -rsp "n8n API key (paste, then Enter): " KEY </dev/tty
 echo
+# Drop what a paste can carry besides the key: bracketed-paste markers
+# (ESC[200~ ... ESC[201~), carriage returns and spaces.
+KEY=${KEY//$'\e[200~'/}
+KEY=${KEY//$'\e[201~'/}
+KEY=$(tr -d '[:space:]' <<<"$KEY")
+if [[ -z $KEY ]]; then
+  echo "No key received. Paste it at the prompt, then press Enter." >&2
+  exit 1
+fi
+echo "Received a ${#KEY}-character key ending in ...${KEY: -6}"
 
 existing=$(curl -fsS -H "X-N8N-API-KEY: $KEY" "$API/credentials?limit=250") || {
-  echo "n8n rejected the API key, or isn't running on $API" >&2
+  echo "n8n rejected that key, or isn't running on $API." >&2
+  echo "An n8n API key is about 260 characters; compare the ending above with the one you copied." >&2
   exit 1
 }
 
