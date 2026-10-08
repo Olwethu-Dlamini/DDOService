@@ -5,6 +5,8 @@ model (Ollama + Mistral 7B), Qdrant and a WhatsApp gateway (WAHA).
 
 **Start with [`docs/SYSTEM-DESIGN.md`](docs/SYSTEM-DESIGN.md)**: how it fits together, why each
 piece was chosen, the memory budget, and what went wrong while building it.
+[`docs/DATA-STORE-OPTIONS.md`](docs/DATA-STORE-OPTIONS.md) compares where workflow data can live
+(Google Sheets, n8n Data Tables, Grist, NocoDB, Baserow), with measured memory costs.
 
 | Order | File | Run on | What it does |
 |---|---|---|---|
