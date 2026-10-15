@@ -16,6 +16,7 @@ piece was chosen, the memory budget, and what went wrong while building it.
 | 4 | [`stack/n8n-credentials.sh`](stack/n8n-credentials.sh) | The VM, as root | Creates n8n's shared credentials (Ollama, Qdrant, WAHA) from the stack's `.env`, so the secrets never leave the VM |
 | 5 | [`stack/whatsapp-link.sh`](stack/whatsapp-link.sh) | The VM, as root | Links a WhatsApp number to WAHA with a pairing code typed on the phone, without the dashboard or a QR scan |
 | 6 | [`backup/`](backup/) | The VM, as root | Nightly backup to Google Drive or self-hosted storage, and how to restore |
+| 7 | [`mail-poll/install.sh`](mail-poll/install.sh) | The VM, as root | Checks a POP3 mailbox every minute and posts each new email's sender and subject to an n8n webhook, for mail servers n8n's IMAP trigger can't follow |
 
 Each script can be run straight from GitHub, which avoids copy-pasting into the Proxmox console:
 
