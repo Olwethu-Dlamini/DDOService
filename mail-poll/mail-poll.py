@@ -3,9 +3,11 @@
 
 For mail servers that n8n's IMAP trigger can't follow. It runs once a minute
 from a systemd timer (see install.sh), lists the mailbox with POP3's UIDL,
-reads only the headers of messages it hasn't seen (TOP n 0), and posts each
-one's From, Subject and Date to n8n. It never deletes a message or marks it
-read, so it can share the mailbox with a mail client that also uses POP3.
+reads the start of each message it hasn't seen (TOP n BODY_LINES: the headers
+and the first lines of the body, never a whole attachment), and posts each
+one's From, To, Subject, Date, Message-ID, References and the beginning of
+its text to n8n. It never deletes a message or marks it read, so it can share
+the mailbox with a mail client that also uses POP3.
 
 The first run records what is already in the mailbox and posts nothing, so
 turning it on doesn't send an alert for every old message.
@@ -19,6 +21,8 @@ Settings come from the environment (on the server: /etc/mail-poll.env):
     WEBHOOK_URL      n8n webhook to POST to
     WEBHOOK_SECRET   sent as the X-Mail-Secret header; n8n rejects anything without it
     STATE_FILE       ids already seen (default: $STATE_DIRECTORY/seen.json, else ./seen.json)
+    BODY_LINES       lines of each message fetched after the headers (default 400; 0 = headers only)
+    BODY_CHARS       characters of text posted as "body" (default 1500)
 
     mail-poll.py                 check once and post new mail
     mail-poll.py --dry-run       print new mail; post nothing, remember nothing
@@ -30,14 +34,17 @@ Python standard library only.
 import argparse
 import email.parser
 import email.policy
+import html
 import json
 import os
 import poplib
+import re
 import sys
 import urllib.request
 from pathlib import Path
 
 TIMEOUT = 30
+HEADER_FIELDS = ("From", "To", "Cc", "Reply-To", "Subject", "Date", "Message-ID", "References")
 
 
 def setting(name, default=None):
@@ -72,10 +79,46 @@ def mailbox(pop):
     return pairs
 
 
-def headers(pop, num):
-    _, lines, _ = pop.top(num, 0)
+def text_of(msg):
+    """The message's text: its text/plain part, else its HTML with the tags
+    stripped, else nothing. Only the first lines were fetched, so a part may
+    end mid-way; the parser copes and the text is simply cut there."""
+    plain, rich = None, None
+    for part in msg.walk():
+        if part.get_content_maintype() != "text" or part.get_content_disposition() == "attachment":
+            continue
+        try:
+            content = part.get_content()
+        except Exception:
+            try:
+                content = part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8", "replace")
+            except Exception:
+                continue
+        if part.get_content_subtype() == "plain" and plain is None:
+            plain = content
+        elif part.get_content_subtype() == "html" and rich is None:
+            rich = content
+    if plain is None and rich is not None:
+        rich = re.sub(r"(?is)<(script|style).*?</\1>", "", rich)
+        rich = re.sub(r"(?i)<br\s*/?>|</p>|</div>|</tr>", "\n", rich)
+        plain = html.unescape(re.sub(r"<[^>]+>", "", rich))
+    if plain is None:
+        return ""
+    # Collapse the whitespace that HTML and quoted-printable leave behind.
+    plain = plain.replace("\r\n", "\n")
+    plain = re.sub(r"[ \t]+\n", "\n", plain)
+    plain = re.sub(r"\n{3,}", "\n\n", plain)
+    return plain.strip()
+
+
+def message(pop, num):
+    """The fields n8n gets for one message. BODY_LINES=0 posts headers only."""
+    body_lines = int(setting("BODY_LINES", "400"))
+    body_chars = int(setting("BODY_CHARS", "1500"))
+    _, lines, _ = pop.top(num, body_lines)
     raw = b"\r\n".join(lines)
-    msg = email.parser.BytesHeaderParser(policy=email.policy.default).parsebytes(raw)
+    parser = email.parser.BytesParser if body_lines else email.parser.BytesHeaderParser
+    msg = parser(policy=email.policy.default).parsebytes(raw)
 
     def get(name):
         # The default policy decodes =?UTF-8?B?...?= words; a malformed header
@@ -85,7 +128,11 @@ def headers(pop, num):
         except Exception:
             return str(msg.get_all(name, [""])[0]).strip()
 
-    return {k.lower(): get(k) for k in ("From", "Subject", "Date", "Message-ID")}
+    item = {k.lower(): get(k) for k in HEADER_FIELDS}
+    text = text_of(msg) if body_lines else ""
+    item["body"] = text[:body_chars]
+    item["body_truncated"] = len(text) > body_chars or bool(body_lines and len(lines) >= body_lines)
+    return item
 
 
 def post(item):
@@ -115,7 +162,7 @@ def main():
         box = mailbox(pop)
         if args.latest:
             for num, _ in box[-args.latest:]:
-                print(json.dumps(headers(pop, num), ensure_ascii=False))
+                print(json.dumps(message(pop, num), ensure_ascii=False))
             return
 
         path = state_path()
@@ -131,7 +178,7 @@ def main():
         posted = set()
         try:
             for num, uid in new:
-                item = headers(pop, num)
+                item = message(pop, num)
                 if args.dry_run:
                     print(json.dumps(item, ensure_ascii=False))
                     continue

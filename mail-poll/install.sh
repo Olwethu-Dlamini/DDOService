@@ -9,6 +9,7 @@
 # file and handed to the poller as a systemd credential. The poller runs as
 # a throwaway user (DynamicUser) and never sees the rest of the system.
 # Safe to re-run: it replaces the settings and the script.
+#   sudo bash install.sh --update    only fetch the newest script; keep every setting
 #
 #   journalctl -u mail-poll -f          watch it
 #   systemctl list-timers mail-poll     when it runs next
@@ -25,6 +26,15 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 command -v python3 >/dev/null || apt-get install -y python3-minimal
+
+if [[ ${1:-} == --update ]]; then
+  [[ -f $ENV ]] || { echo "Nothing installed yet; run without --update." >&2; exit 1; }
+  echo "==> Script"
+  wget -qO /usr/local/bin/mail-poll.py "$RAW/mail-poll.py"
+  chmod 755 /usr/local/bin/mail-poll.py
+  echo "Updated. The timer uses it on its next run; check with: journalctl -u mail-poll -n 3"
+  exit 0
+fi
 
 # stdin may be this script, so read answers from the terminal.
 ask() { # ask VAR PROMPT [DEFAULT]
