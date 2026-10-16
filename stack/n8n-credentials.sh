@@ -68,4 +68,11 @@ upsert "Ollama (local)" ollamaApi '{"baseUrl":"http://ollama:11434"}'
 upsert "Qdrant (local)" qdrantApi "{\"qdrantUrl\":\"http://qdrant:6333\",\"apiKey\":\"$QDRANT_API_KEY\"}"
 upsert "WAHA" httpHeaderAuth "{\"name\":\"X-Api-Key\",\"value\":\"$WAHA_API_KEY\"}"
 upsert "WAHA webhook secret" httpHeaderAuth "{\"name\":\"X-Waha-Secret\",\"value\":\"$WAHA_HOOK_SECRET\"}"
+# Telegram is optional: only the work-email alerts use it. The token comes from
+# BotFather and is put in .env by hand (deploy.sh can't generate it).
+if [[ -n ${TELEGRAM_BOT_TOKEN:-} ]]; then
+  upsert "Telegram (work alerts)" telegramApi "{\"accessToken\":\"$TELEGRAM_BOT_TOKEN\"}"
+else
+  echo "  skipped  Telegram (work alerts): TELEGRAM_BOT_TOKEN is not set in $DIR/.env"
+fi
 echo "Done. Workflows refer to these by name; see the n8n-chatbot repo's README."
