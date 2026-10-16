@@ -1,4 +1,5 @@
-# Automation stack: Qdrant + Ollama (Mistral 7B) + n8n + WAHA (WhatsApp).
+# Automation stack: Qdrant + Ollama (Mistral 7B) + n8n + WAHA (WhatsApp)
+# + bridge (Telegram <-> n8n <-> mail relay, profile "telegram").
 # Part 5 of automation-money-guide-research.html, corrected for current images:
 #   - no Qdrant curl healthcheck (the image has no curl; endpoint is /healthz)
 #   - no qdrant-config.yaml mount (the guide never creates it)
@@ -8,7 +9,8 @@
 #   - limits sized from .env for the 12GB / 4-core VM
 #
 # Services reach each other by name: n8n uses http://qdrant:6333,
-# http://ollama:11434 and http://waha:3000; WAHA posts to http://n8n:5678.
+# http://ollama:11434, http://waha:3000 and http://bridge:8025; WAHA and the
+# bridge post to http://n8n:5678.
 #
 # Memory: every service has a cap, and the budget is in docs/SYSTEM-DESIGN.md.
 # Ollama is the only large consumer, so it unloads its model when idle.
@@ -104,6 +106,38 @@ services:
       - waha_sessions:/app/.sessions
     cpus: ${WAHA_CPUS:-0.5}
     mem_limit: ${WAHA_MEM:-768m}
+    restart: unless-stopped
+
+  bridge:
+    # Telegram <-> n8n <-> mail relay (stack/bridge/bridge.py). Standard
+    # library only, so the stock Python image runs it; deploy.sh fetches the
+    # script into ./bridge. Only started when TELEGRAM_BOT_TOKEN is set
+    # (deploy.sh adds --profile telegram). No published port: n8n reaches it
+    # as http://bridge:8025 inside the Docker network, nothing else can.
+    image: python:3.13-slim
+    container_name: bridge
+    profiles: ["telegram"]
+    command: ["python", "-u", "/app/bridge.py"]
+    volumes:
+      - ./bridge:/app:ro
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:?set TELEGRAM_BOT_TOKEN in .env}
+      - OWNER_CHAT_ID=${OWNER_CHAT_ID:?set OWNER_CHAT_ID in .env}
+      - BRIDGE_SECRET=${BRIDGE_SECRET:?set BRIDGE_SECRET in .env}
+      - N8N_WEBHOOK=http://n8n:5678/webhook/telegram
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_TLS_VERIFY=${SMTP_TLS_VERIFY:-true}
+      - SMTP_SECURITY_LEVEL=${SMTP_SECURITY_LEVEL:-1}
+      - MAIL_FROM=${MAIL_FROM:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-}
+      - TZ=${TZ:-Africa/Johannesburg}
+    cpus: ${BRIDGE_CPUS:-0.25}
+    mem_limit: ${BRIDGE_MEM:-128m}
+    depends_on:
+      - n8n
     restart: unless-stopped
 
 volumes:

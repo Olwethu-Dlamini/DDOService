@@ -75,4 +75,11 @@ if [[ -n ${TELEGRAM_BOT_TOKEN:-} ]]; then
 else
   echo "  skipped  RI Email: TELEGRAM_BOT_TOKEN is not set in $DIR/.env"
 fi
+# The bridge's secret, used by n8n to accept the bridge's webhook posts and to
+# call the bridge's /send API.
+if [[ -n ${BRIDGE_SECRET:-} ]]; then
+  upsert "Mail bridge secret" httpHeaderAuth "{\"name\":\"X-Bridge-Secret\",\"value\":\"$BRIDGE_SECRET\"}"
+else
+  echo "  skipped  Mail bridge secret: BRIDGE_SECRET is not set (run deploy.sh first)"
+fi
 echo "Done. Workflows refer to these by name; see the n8n-chatbot repo's README."

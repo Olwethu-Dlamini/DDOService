@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the automation stack (Qdrant + Ollama + n8n + WAHA) to /opt/automation,
+# Deploy the automation stack (Qdrant + Ollama + n8n + WAHA + bridge) to /opt/automation,
 # pull the model, then run the guide's Part 5 checks.
 #
 #   sudo bash deploy.sh
@@ -21,8 +21,10 @@ command -v docker &>/dev/null || { echo "Docker missing: run docker-install.sh f
 mkdir -p "$DIR"
 cd "$DIR"
 
-echo "==> Fetching compose file"
+echo "==> Fetching compose file and the bridge"
 curl -fsSL "$RAW/docker-compose.yml" -o docker-compose.yml
+mkdir -p bridge
+curl -fsSL "$RAW/bridge/bridge.py" -o bridge/bridge.py
 
 curl -fsSL "$RAW/.env.example" -o .env.example
 if [[ ! -f .env ]]; then
@@ -38,7 +40,7 @@ else
   done < .env.example
 fi
 # Fill every empty secret with a new random value.
-for key in QDRANT_API_KEY WAHA_API_KEY WAHA_DASHBOARD_PASSWORD WAHA_HOOK_SECRET; do
+for key in QDRANT_API_KEY WAHA_API_KEY WAHA_DASHBOARD_PASSWORD WAHA_HOOK_SECRET BRIDGE_SECRET; do
   if grep -q "^${key}=$" .env; then
     sed -i "s/^${key}=$/${key}=$(openssl rand -hex 32)/" .env
     echo "    generated ${key}"
@@ -48,11 +50,20 @@ chmod 600 .env
 # shellcheck disable=SC1091
 source .env
 
+# The bridge only runs when there is a Telegram bot to poll.
+COMPOSE=(docker compose)
+if [[ -n ${TELEGRAM_BOT_TOKEN:-} ]]; then
+  COMPOSE+=(--profile telegram)
+  echo "==> TELEGRAM_BOT_TOKEN is set: the bridge will run"
+else
+  echo "==> TELEGRAM_BOT_TOKEN is empty: the bridge stays off"
+fi
+
 echo "==> Pulling images"
-docker compose pull
+"${COMPOSE[@]}" pull
 
 echo "==> Starting stack"
-docker compose up -d
+"${COMPOSE[@]}" up -d
 
 echo "==> Waiting for Ollama"
 for _ in $(seq 1 30); do
@@ -81,8 +92,15 @@ printf '  Qdrant:  '; curl -fs http://localhost:6333/healthz || echo "NOT OK"; e
 printf '  Ollama:  '; docker exec ollama ollama list | tail -n +2 | awk '{print $1, $3, $4}' | paste -sd' ' || echo "NOT OK"
 printf '  n8n:     '; curl -fs http://localhost:5678/healthz || echo "NOT OK"; echo
 printf '  WAHA:    '; curl -fs -H "X-Api-Key: $WAHA_API_KEY" http://localhost:3000/api/server/version || echo "NOT OK"; echo
+if [[ -n ${TELEGRAM_BOT_TOKEN:-} ]]; then
+  printf '  bridge:  '
+  for _ in $(seq 1 15); do
+    docker exec bridge python -c 'import urllib.request;print(urllib.request.urlopen("http://localhost:8025/healthz",timeout=3).read().decode())' 2>/dev/null && break
+    sleep 2
+  done || echo "NOT OK (docker logs bridge)"
+fi
 echo
-docker compose ps
+"${COMPOSE[@]}" ps
 echo
 docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
 
