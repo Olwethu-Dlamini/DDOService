@@ -1,7 +1,7 @@
 # DDOService
 
 Scripts and docs for a self-hosted automation server: a Proxmox VM running n8n, a local language
-model (Ollama + Mistral 7B), Qdrant and a WhatsApp gateway (WAHA).
+model (Ollama + Mistral 7B), Qdrant, a WhatsApp gateway (WAHA) and a Telegram/mail bridge.
 
 **Start with [`docs/SYSTEM-DESIGN.md`](docs/SYSTEM-DESIGN.md)**: how it fits together, why each
 piece was chosen, the memory budget, and what went wrong while building it.
@@ -16,7 +16,8 @@ piece was chosen, the memory budget, and what went wrong while building it.
 | 4 | [`stack/n8n-credentials.sh`](stack/n8n-credentials.sh) | The VM, as root | Creates n8n's shared credentials (Ollama, Qdrant, WAHA) from the stack's `.env`, so the secrets never leave the VM |
 | 5 | [`stack/whatsapp-link.sh`](stack/whatsapp-link.sh) | The VM, as root | Links a WhatsApp number to WAHA with a pairing code typed on the phone, without the dashboard or a QR scan |
 | 6 | [`backup/`](backup/) | The VM, as root | Nightly backup to Google Drive or self-hosted storage, and how to restore |
-| 7 | [`mail-poll/install.sh`](mail-poll/install.sh) | The VM, as root | Checks a POP3 mailbox every minute and posts each new email's sender and subject to an n8n webhook, for mail servers n8n's IMAP trigger can't follow |
+| 7 | [`mail-poll/install.sh`](mail-poll/install.sh) | The VM, as root | Checks a POP3 mailbox every minute and posts each new email's headers and the start of its text to an n8n webhook, for mail servers n8n's IMAP trigger can't follow. `--update` refreshes the script only |
+| 8 | [`stack/bridge/bridge.py`](stack/bridge/bridge.py) | Started by `deploy.sh` when `TELEGRAM_BOT_TOKEN` is set | Telegram in, email out: long-polls a Telegram bot and posts the owner's messages to n8n; sends email for n8n through a mail relay, including old relays modern TLS defaults refuse |
 
 Each script can be run straight from GitHub, which avoids copy-pasting into the Proxmox console:
 
