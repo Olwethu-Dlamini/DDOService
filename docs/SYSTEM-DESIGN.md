@@ -87,7 +87,7 @@ this repo.
 | **Ollama** | Runs language models locally (Mistral 7B, Q4_K_M) | 11434 | **The VM only** (`127.0.0.1`) | None, which is why it is not published |
 | **Qdrant** | Stores text as vectors and finds the closest matches (the "retrieval" in RAG) | 6333 | LAN + tailnet | `api-key` header |
 | **mail-poll** | Not a container: a systemd timer on the VM. Every minute it reads a mailbox's new headers over POP3 and posts them to n8n | none | (it only calls out) | Mail password in `/etc/mail-poll.pass` (root only); `X-Mail-Secret` header to n8n |
-| **Telegram Bot API** | Not on the VM at all: Telegram's own servers. n8n calls `api.telegram.org` to send the owner a message as a bot | none | (outbound HTTPS only) | The bot token, held as the n8n credential `Telegram (work alerts)`, optionally seeded from `TELEGRAM_BOT_TOKEN` in `.env` |
+| **Telegram Bot API** | Not on the VM at all: Telegram's own servers. n8n calls `api.telegram.org` to send the owner a message as a bot | none | (outbound HTTPS only) | The bot token, held as the n8n credential `RI Email`, optionally seeded from `TELEGRAM_BOT_TOKEN` in `.env` |
 
 Inside Docker the services reach each other **by name** (`http://n8n:5678`, `http://waha:3000`,
 `http://ollama:11434`, `http://qdrant:6333`). Compose puts them on one private network with its

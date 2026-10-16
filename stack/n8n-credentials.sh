@@ -71,8 +71,8 @@ upsert "WAHA webhook secret" httpHeaderAuth "{\"name\":\"X-Waha-Secret\",\"value
 # Telegram is optional: only the work-email alerts use it. The token comes from
 # BotFather and is put in .env by hand (deploy.sh can't generate it).
 if [[ -n ${TELEGRAM_BOT_TOKEN:-} ]]; then
-  upsert "Telegram (work alerts)" telegramApi "{\"accessToken\":\"$TELEGRAM_BOT_TOKEN\"}"
+  upsert "RI Email" telegramApi "{\"accessToken\":\"$TELEGRAM_BOT_TOKEN\"}"
 else
-  echo "  skipped  Telegram (work alerts): TELEGRAM_BOT_TOKEN is not set in $DIR/.env"
+  echo "  skipped  RI Email: TELEGRAM_BOT_TOKEN is not set in $DIR/.env"
 fi
 echo "Done. Workflows refer to these by name; see the n8n-chatbot repo's README."
