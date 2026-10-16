@@ -28,6 +28,9 @@ Settings come from the environment (the stack's .env; see .env.example):
     SMTP_TLS_VERIFY      default true; false for a relay whose certificate chain is broken
     SMTP_SECURITY_LEVEL  default 1 (OpenSSL level; 2 is the modern default)
     MAIL_FROM            the address mail is sent as; MAIL_FROM_NAME its display name
+    MAIL_COPY_TO         where a copy of every sent email goes, as Bcc: "self" (default) means
+                         MAIL_FROM, so the sent mail lands in the sender's own mailbox and a POP3
+                         client collects it; an address; or "none"
     SMTP_DRY_RUN         true: build and log the email, send nothing (for tests)
 """
 
@@ -175,7 +178,15 @@ def send_mail(req):
         msg["Cc"] = ", ".join(cc)
     msg["Subject"] = subject
     msg["Date"] = formatdate(localtime=True)
-    msg["Message-ID"] = make_msgid(domain=sender.rsplit("@", 1)[-1])
+    # "bridge" in the id marks mail sent this way, so the alert workflow can
+    # tell the Bcc copy of its own sends from an email the owner really got.
+    msg["Message-ID"] = make_msgid(idstring="bridge", domain=sender.rsplit("@", 1)[-1])
+    copy_to = setting("MAIL_COPY_TO", "self")
+    if copy_to == "self":
+        copy_to = sender
+    if copy_to and copy_to != "none":
+        # send_message() delivers to Bcc and strips the header from what goes out.
+        msg["Bcc"] = copy_to
     if req.get("in_reply_to"):
         # What makes the reply sit under the original in the other side's mailbox.
         msg["In-Reply-To"] = req["in_reply_to"]

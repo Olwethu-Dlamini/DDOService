@@ -133,6 +133,7 @@ services:
       - SMTP_SECURITY_LEVEL=${SMTP_SECURITY_LEVEL:-1}
       - MAIL_FROM=${MAIL_FROM:-}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-}
+      - MAIL_COPY_TO=${MAIL_COPY_TO:-self}
       - TZ=${TZ:-Africa/Johannesburg}
     cpus: ${BRIDGE_CPUS:-0.25}
     mem_limit: ${BRIDGE_MEM:-128m}
