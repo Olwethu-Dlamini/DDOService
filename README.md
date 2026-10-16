@@ -18,6 +18,7 @@ piece was chosen, the memory budget, and what went wrong while building it.
 | 6 | [`backup/`](backup/) | The VM, as root | Nightly backup to Google Drive or self-hosted storage, and how to restore |
 | 7 | [`mail-poll/install.sh`](mail-poll/install.sh) | The VM, as root | Checks a POP3 mailbox every minute and posts each new email's headers and the start of its text to an n8n webhook, for mail servers n8n's IMAP trigger can't follow. `--update` refreshes the script only |
 | 8 | [`stack/bridge/bridge.py`](stack/bridge/bridge.py) | Started by `deploy.sh` when `TELEGRAM_BOT_TOKEN` is set | Telegram in, email out: long-polls a Telegram bot and posts the owner's messages to n8n; sends email for n8n through a mail relay, including old relays modern TLS defaults refuse |
+| 9 | [`stack/bridge/relay-test.sh`](stack/bridge/relay-test.sh) | The VM, as root | Tests the relay login the bridge container holds, without typing or printing the password |
 
 Each script can be run straight from GitHub, which avoids copy-pasting into the Proxmox console:
 

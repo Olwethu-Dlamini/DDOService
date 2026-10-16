@@ -178,7 +178,7 @@ misbehaving service is killed and restarted instead of starving the rest.
 | Qdrant | 1.5GB | 92MB (no collections yet); 55MB of its own on 2026-10-16 | cgroup on the VM, 2026-10-07 and 2026-10-16 |
 | WAHA | 768MB | **350MB of its own memory** once linked and synced; the cgroup reads 765MB because 386MB more is disk cache from the sync, which the kernel reclaims (it hit the cap 711 times with 0 OOM kills and 54ms of total stall). Before linking: 408MB on the VM, 300MB on the laptop. Unchanged after 9 days: 355MB own, 763MB with cache, still sitting at the cap | cgroup `memory.stat` (`anon`), `memory.events`, `memory.pressure` on the VM after linking, 2026-10-07; again 2026-10-16 |
 | mail-poll | 64MB (`MemoryMax`) | One short Python run a minute; not measured yet | |
-| bridge | 128MB | 24MB as one process on the laptop (long-poll loop and HTTP server, standard library only); not yet measured on the VM | `ru_maxrss` on the laptop, 2026-10-16 |
+| bridge | 128MB | **23MB of its own** on the VM, 27MB with cache, 30MB peak, after its first sends; 24MB as one process on the laptop | cgroup `memory.stat`/`memory.peak` on the VM, 2026-10-16 10:50 |
 | Whole VM | 12GB | 1.2GB used in total, containers included, with Mistral unloaded. 1.76GB used after 14 days up, 10GB as reclaimable cache, swap 0, memory pressure 0.00, disk 31GB of 283GB | `free -m` on the VM, 2026-10-07; `free -m`, `/proc/pressure/memory`, `df` 2026-10-16 |
 
 **The rules that keep it inside 12GB:**
@@ -264,6 +264,7 @@ add a new entry rather than editing the old one.
 | 2026-10-15 | Work email alerts | n8n's IMAP trigger connected (credential test passed) but never fired: a test email sat in the mailbox, and after 4 minutes, then after reconnecting every minute, there was no run, no error and no stored UID | The server (IMail 8.22) has no IMAP IDLE, so n8n's IMAP library falls back to polling, and this server evidently doesn't report new mail to it. Read the same mailbox over POP3 instead with `mail-poll/`, tested against the real mailbox from the laptop first. **Lesson:** an old mail server is best read the way its users' mail clients already read it |
 | 2026-10-16 | Work email alerts | The owner asked to move the alerts off WhatsApp: a ban on the personal number would take the DStv business bot down with it, and own-number alerts arrived silently | New n8n workflow with a Telegram node on the same webhook path, so the poller on the VM wasn't touched; the old workflow switched off, not deleted, for a one-command rollback. `n8n-credentials.sh` learnt an optional `TELEGRAM_BOT_TOKEN`. Guides in the private repo's `work-email/`. **Lesson:** keep the trigger and the sender in separate nodes, so a channel can be swapped without touching the half that needed root to install |
 | 2026-10-16 | Replying from Telegram | Sending through the work relay failed from both Python (`DH_KEY_TOO_SMALL`) and Node (`ERR_SSL_DH_KEY_TOO_SMALL`): its STARTTLS uses a 1024-bit DH key, and its certificate chain carries expired intermediates | `openssl s_client -cipher 'DEFAULT:@SECLEVEL=1'` worked, so the bridge sets that level on its one SMTP connection and can be told to skip chain verification. n8n's own Send Email node has no such switch, and can't set `In-Reply-To` either, which decided D13. Tested end to end with the bridge on the laptop in dry-run mode before any root step on the VM. **Lesson:** an old relay is a reason to own the sending code, not to weaken the whole container's TLS |
+| 2026-10-16 | Bridge on the VM | First real reply from Telegram: `535 Authentication failed`, although the same password typed again passed a login test. The first paste of the relay password into the setup script carried a hidden carriage return; the helper that wrote `.env` kept it, and later rewrites split the line at it, leaving a stray `'` line. Compose refused the file (`unexpected character "'" in variable name`), so the container was never recreated and kept a one-character password | Deleted the stray line, `up -d --force-recreate bridge`, login OK, email delivered and threaded. Added `stack/bridge/relay-test.sh`, which tests the login the container actually holds and prints only the password's length and first/last character. **Lesson:** strip `\r` from anything read at a prompt, and make the test read the running container's settings, not the typed value |
 
 ---
 
@@ -305,8 +306,5 @@ Each figure states what was measured, where, and when.
 - Run the backup on the VM and choose off-site storage.
 - Watchdog workflow for memory (section 5).
 - Measure mail-poll's memory and runtime on the VM (section 5).
-- Deploy the bridge on the VM (D13): `.env` settings, `deploy.sh`, `n8n-credentials.sh`,
-  `mail-poll/install.sh --update`; then measure it (section 5). Steps in the private repo's
-  `work-email/SETUP.md`.
 - The owner's call: delete the WhatsApp alert workflow and the unused `RI Work` credential;
   revoke and replace the bot token that was pasted into a chat on 2026-10-16.
