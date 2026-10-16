@@ -5,7 +5,8 @@
 #
 #   wget -qO- https://raw.githubusercontent.com/Olwethu-Dlamini/DDOService/main/stack/n8n-credentials.sh | sudo bash
 #
-# Asks for an n8n API key (n8n: Settings > n8n API > Create API key).
+# Asks for an n8n API key (n8n: Settings > n8n API > Create API key), or
+# takes it from N8N_API_KEY in the environment.
 # Safe to re-run: a credential that already exists is updated in place,
 # so workflows that use it keep working.
 
@@ -21,10 +22,16 @@ fi
 # shellcheck disable=SC1091
 source "$DIR/.env"
 
-# stdin is this script when piped from wget, so read the key from the terminal.
-# The prompt shows nothing while you paste; the line after it confirms what arrived.
-read -rsp "n8n API key (paste, then Enter): " KEY </dev/tty
-echo
+# Asks for the key, unless N8N_API_KEY is already in the environment (for
+# a wrapper script). stdin is this script when piped from wget, so the
+# prompt reads from the terminal; it shows nothing while you paste, and the
+# line after it confirms what arrived.
+if [[ -n ${N8N_API_KEY:-} ]]; then
+  KEY=$N8N_API_KEY
+else
+  read -rsp "n8n API key (paste, then Enter): " KEY </dev/tty
+  echo
+fi
 # Drop what a paste can carry besides the key: bracketed-paste markers
 # (ESC[200~ ... ESC[201~), carriage returns and spaces.
 KEY=${KEY//$'\e[200~'/}
