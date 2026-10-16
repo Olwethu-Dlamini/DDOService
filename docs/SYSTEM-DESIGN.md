@@ -162,12 +162,12 @@ misbehaving service is killed and restarted instead of starving the rest.
 
 | Service | Cap | Measured | How measured |
 |---|---|---|---|
-| Ollama | 6GB | **6.0GB peak** with Mistral loaded (it filled its cap); ~0 when unloaded | cgroup `memory.peak` on the VM, 2026-10-07 |
-| n8n | 1.5GB | 543MB after a day running, 773MB peak; 324MB just after a restart | cgroup on the VM, and `docker stats` from `deploy.sh`, 2026-10-07 |
-| Qdrant | 1.5GB | 92MB (no collections yet) | cgroup on the VM, 2026-10-07 |
-| WAHA | 768MB | **350MB of its own memory** once linked and synced; the cgroup reads 765MB because 386MB more is disk cache from the sync, which the kernel reclaims (it hit the cap 711 times with 0 OOM kills and 54ms of total stall). Before linking: 408MB on the VM, 300MB on the laptop | cgroup `memory.stat` (`anon`), `memory.events`, `memory.pressure` on the VM after linking, 2026-10-07 |
+| Ollama | 6GB | **6.0GB peak** with Mistral loaded (it filled its cap); 13MB of its own when unloaded (2026-10-16) | cgroup `memory.peak` on the VM, 2026-10-07; `memory.stat` anon 2026-10-16 |
+| n8n | 1.5GB | 543MB after a day running, 773MB peak; 324MB just after a restart. After 9 days: 429MB of its own, 660MB with cache, 822MB peak | cgroup on the VM, and `docker stats` from `deploy.sh`, 2026-10-07; cgroup `memory.stat`/`memory.peak` 2026-10-16 |
+| Qdrant | 1.5GB | 92MB (no collections yet); 55MB of its own on 2026-10-16 | cgroup on the VM, 2026-10-07 and 2026-10-16 |
+| WAHA | 768MB | **350MB of its own memory** once linked and synced; the cgroup reads 765MB because 386MB more is disk cache from the sync, which the kernel reclaims (it hit the cap 711 times with 0 OOM kills and 54ms of total stall). Before linking: 408MB on the VM, 300MB on the laptop. Unchanged after 9 days: 355MB own, 763MB with cache, still sitting at the cap | cgroup `memory.stat` (`anon`), `memory.events`, `memory.pressure` on the VM after linking, 2026-10-07; again 2026-10-16 |
 | mail-poll | 64MB (`MemoryMax`) | One short Python run a minute; not measured yet | |
-| Whole VM | 12GB | 1.2GB used in total, containers included, with Mistral unloaded | `free -m` on the VM, 2026-10-07 |
+| Whole VM | 12GB | 1.2GB used in total, containers included, with Mistral unloaded. 1.76GB used after 14 days up, 10GB as reclaimable cache, swap 0, memory pressure 0.00, disk 31GB of 283GB | `free -m` on the VM, 2026-10-07; `free -m`, `/proc/pressure/memory`, `df` 2026-10-16 |
 
 **The rules that keep it inside 12GB:**
 
