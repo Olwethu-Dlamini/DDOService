@@ -301,11 +301,12 @@ Each figure states what was measured, where, and when.
 
 ## 10. Open items
 
-- Measure WAHA after linking and adjust its cap.
 - **Choose where the payment data lives** (D8 is being reconsidered: the Google Cloud setup is a hurdle). Options, measured: [`DATA-STORE-OPTIONS.md`](DATA-STORE-OPTIONS.md).
 - Build the payment-reminder workflows (section 4); designed in the private repo's `dstv/README.md`.
 - Run the backup on the VM and choose off-site storage.
 - Watchdog workflow for memory (section 5).
 - Measure mail-poll's memory and runtime on the VM (section 5).
+- Re-run `deploy.sh` on the VM to pick up the bridge's Bcc copy (D14), then set the mail client's
+  filter (private repo, `work-email/SETUP.md` 5f).
 - The owner's call: delete the WhatsApp alert workflow and the unused `RI Work` credential;
   revoke and replace the bot token that was pasted into a chat on 2026-10-16.
