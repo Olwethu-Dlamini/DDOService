@@ -12,7 +12,9 @@ Two jobs, one small process (Python standard library only):
 2. n8n -> mail. A tiny HTTP API on port 8025, reachable only inside the
    Docker network: POST /send with the same header and a JSON body
    {to, subject, text, cc?, in_reply_to?, references?} sends an email
-   through the relay with STARTTLS. Old relays with 1024-bit keys are
+   through the relay with STARTTLS and answers {ok, message_id, to, cc}: the
+   recipients it really used. For a reply-all, the sender's own address and
+   anyone already in To are taken off the Cc list. Old relays with 1024-bit keys are
    accepted (OpenSSL security level 1), because modern defaults refuse them
    and n8n's own Send Email node can't be told otherwise. GET /healthz
    answers {"ok": true} with the time of the last Telegram poll.
@@ -159,10 +161,29 @@ def addresses(value):
     return found
 
 
+def bare(address):
+    """'A <A@x>' -> 'a@x', for comparing addresses."""
+    return getaddresses([address])[0][1].strip().lower()
+
+
 def send_mail(req):
     sender = setting("MAIL_FROM")
     to = addresses(req.get("to"))
-    cc = addresses(req["cc"]) if req.get("cc") else []
+    copy_to = setting("MAIL_COPY_TO", "self")
+    if copy_to == "self":
+        copy_to = sender
+    # A reply-all hands over everyone who was on the original email, which
+    # includes the sender's own address. Nobody gets the email twice: the
+    # sender (and the Bcc copy address) and anyone already in To are dropped
+    # from Cc, and each address is kept once.
+    seen = {bare(a) for a in to} | {sender.lower()}
+    if copy_to and copy_to != "none":
+        seen.add(bare(copy_to))
+    cc = []
+    for address in (addresses(req["cc"]) if req.get("cc") else []):
+        if bare(address) not in seen:
+            seen.add(bare(address))
+            cc.append(address)
     subject = (req.get("subject") or "").strip()
     text = (req.get("text") or "").strip()
     if not subject:
@@ -181,9 +202,6 @@ def send_mail(req):
     # "bridge" in the id marks mail sent this way, so the alert workflow can
     # tell the Bcc copy of its own sends from an email the owner really got.
     msg["Message-ID"] = make_msgid(idstring="bridge", domain=sender.rsplit("@", 1)[-1])
-    copy_to = setting("MAIL_COPY_TO", "self")
-    if copy_to == "self":
-        copy_to = sender
     if copy_to and copy_to != "none":
         # send_message() delivers to Bcc and strips the header from what goes out.
         msg["Bcc"] = copy_to
@@ -193,9 +211,10 @@ def send_mail(req):
         msg["References"] = " ".join(filter(None, [(req.get("references") or "").strip(), req["in_reply_to"]]))
     msg.set_content(text)
 
+    sent = {"message_id": msg["Message-ID"], "to": to, "cc": cc}
     if DRY_RUN:
         log.info("DRY RUN, not sent:\n%s", msg.as_string())
-        return msg["Message-ID"]
+        return sent
 
     context = ssl.create_default_context()
     context.set_ciphers(f"DEFAULT:@SECLEVEL={setting('SMTP_SECURITY_LEVEL', '1')}")
@@ -211,7 +230,7 @@ def send_mail(req):
         if user:
             smtp.login(user, setting("SMTP_PASSWORD"))
         smtp.send_message(msg)
-    return msg["Message-ID"]
+    return sent
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -247,7 +266,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length") or 0)
             req = json.loads(self.rfile.read(length) or b"{}")
-            message_id = send_mail(req)
+            sent = send_mail(req)
         except (ValueError, KeyError) as err:
             log.warning("refused a send: %s", err)
             return self.answer(400, {"ok": False, "error": str(err)})
@@ -255,8 +274,9 @@ class Handler(BaseHTTPRequestHandler):
             log.error("send failed: %s", err)
             return self.answer(502, {"ok": False, "error": f"{type(err).__name__}: {err}"})
         state["sent"] += 1
-        log.info("sent %s to %s%s", message_id, req.get("to"), " (dry run)" if DRY_RUN else "")
-        self.answer(200, {"ok": True, "message_id": message_id})
+        log.info("sent %s to %s, cc %s%s", sent["message_id"], sent["to"], sent["cc"] or "nobody",
+                 " (dry run)" if DRY_RUN else "")
+        self.answer(200, {"ok": True, **sent})
 
 
 def main():
