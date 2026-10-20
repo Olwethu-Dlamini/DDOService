@@ -240,6 +240,7 @@ add a new entry rather than editing the old one.
 | D12 | 2026-10-16 | Owner-only notifications go out through a **Telegram bot**, starting with the work-email alerts | WhatsApp through WAHA (as before); a second WhatsApp number | Every automated message from the owner's personal number adds to the D10 ban risk, and own-number WhatsApp messages don't ring. Telegram's Bot API is official, free, sends over outbound HTTPS (no public URL, D5 intact) and a bot's message rings. WAHA stays for the customer-facing DStv bot |
 | D13 | 2026-10-16 | The owner's Telegram messages reach n8n through the **bridge** (long polling), and email is **sent by the bridge**, not by n8n | Tailscale Funnel + n8n's Telegram Trigger; n8n's Send Email node; a mail app on the phone (offered, declined) | Long polling keeps D5 (no public URL). The work relay's 1024-bit TLS key is refused by Node (`ERR_SSL_DH_KEY_TOO_SMALL`, Node 26) and n8n's Send Email node can't set `In-Reply-To`, so replies wouldn't thread; a Python sender does both in 300 lines, about 25MB |
 | D14 | 2026-10-16 | The bridge **Bcc's the sender** on every email it sends (`MAIL_COPY_TO`, default `self`) | Append to an IMAP Sent folder; a sent log on the VM; switch the mail client to IMAP | SMTP keeps no copy, and the owner's client reads the account over POP3, which has no server folders. A Bcc reaches the mailbox and the client within a minute, needs no new part, and the client files it to Sent with one filter. The alert workflow skips these copies by the `.bridge` mark in their Message-ID |
+| D15 | 2026-10-20 | A reply typed in Telegram is a **reply-all**; `/reply` answers the sender only | Sender only (as before); sender only with a command for everyone | The owner's choice: replies were leaving the others on the thread out. The workflow lists To + Cc minus the owner and the sender; the bridge drops the sender's own address and anyone already in To from Cc as a guard and answers with the recipients it used, so the Telegram confirmation names them. Bcc recipients of the original can't be included: a received email doesn't carry them |
 
 ---
 
@@ -306,7 +307,8 @@ Each figure states what was measured, where, and when.
 - Run the backup on the VM and choose off-site storage.
 - Watchdog workflow for memory (section 5).
 - Measure mail-poll's memory and runtime on the VM (section 5).
-- Re-run `deploy.sh` on the VM to pick up the bridge's Bcc copy (D14), then set the mail client's
-  filter (private repo, `work-email/SETUP.md` 5f).
+- Re-run `deploy.sh` on the VM to pick up the bridge's Bcc copy (D14) and its reply-all Cc rules
+  (D15), then set the mail client's filter (private repo, `work-email/SETUP.md` 5f). Until then,
+  replies sent from Telegram never reach Thunderbird (seen by the owner on 2026-10-20).
 - The owner's call: delete the WhatsApp alert workflow and the unused `RI Work` credential;
   revoke and replace the bot token that was pasted into a chat on 2026-10-16.
