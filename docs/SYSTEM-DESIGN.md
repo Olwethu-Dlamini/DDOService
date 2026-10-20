@@ -307,8 +307,8 @@ Each figure states what was measured, where, and when.
 - Run the backup on the VM and choose off-site storage.
 - Watchdog workflow for memory (section 5).
 - Measure mail-poll's memory and runtime on the VM (section 5).
-- Re-run `deploy.sh` on the VM to pick up the bridge's Bcc copy (D14) and its reply-all Cc rules
-  (D15), then set the mail client's filter (private repo, `work-email/SETUP.md` 5f). Until then,
-  replies sent from Telegram never reach Thunderbird (seen by the owner on 2026-10-20).
+- Bridge with D14 and D15 deployed on the VM 2026-10-20. Still to do: the owner's phone test of
+  reply-all and the Sent copy, and the mail client's filter if missing (private repo,
+  `work-email/SETUP.md` 5f, and `work-email/reply-all/README.md`).
 - The owner's call: delete the WhatsApp alert workflow and the unused `RI Work` credential;
   revoke and replace the bot token that was pasted into a chat on 2026-10-16.
