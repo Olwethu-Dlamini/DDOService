@@ -107,6 +107,7 @@ docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
 echo
 echo "Done."
 echo "  n8n:              http://${N8N_HOST:-ai}:5678   (create the owner account on first visit)"
+[[ -n ${N8N_WEBHOOK_URL:-} ]] && echo "  Public webhooks:  ${N8N_WEBHOOK_URL}webhook/...   (check from any machine: stack/public-webhook-check.sh)"
 echo "  Qdrant dashboard: http://${N8N_HOST:-ai}:6333/dashboard   (API key in $DIR/.env)"
 echo "  WhatsApp:         http://${N8N_HOST:-ai}:3000/dashboard   (user admin, password WAHA_DASHBOARD_PASSWORD in $DIR/.env)"
 echo "  In n8n, use Qdrant URL http://qdrant:6333, Ollama URL http://ollama:11434, WAHA URL http://waha:3000"
