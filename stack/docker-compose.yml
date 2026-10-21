@@ -56,7 +56,12 @@ services:
       - DB_TYPE=sqlite
       - N8N_SECURE_COOKIE=false
       - N8N_HOST=${N8N_HOST:-ai}
-      - WEBHOOK_URL=http://${N8N_HOST:-ai}:5678/
+      # The URL n8n prints on webhook nodes. N8N_WEBHOOK_URL is the public one
+      # (Cloudflare Tunnel on srv1, webhooks only); empty = Tailscale only.
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://${N8N_HOST:-ai}:5678/}
+      # Public webhooks arrive through one proxy (Caddy on srv1), so trust
+      # one X-Forwarded-For hop for the caller's address.
+      - N8N_PROXY_HOPS=1
       - GENERIC_TIMEZONE=${TZ:-Africa/Johannesburg}
       - TZ=${TZ:-Africa/Johannesburg}
       - NODE_OPTIONS=--max-old-space-size=${N8N_HEAP_MB:-1024}
