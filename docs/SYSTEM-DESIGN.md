@@ -328,5 +328,7 @@ Each figure states what was measured, where, and when.
 - Bridge with D14 and D15 deployed on the VM 2026-10-20. Still to do: the owner's phone test of
   reply-all and the Sent copy, and the mail client's filter if missing (private repo,
   `work-email/SETUP.md` 5f, and `work-email/reply-all/README.md`).
+- Public webhooks (D16): add each new production webhook to `stack/public-webhook-check.sh`, and
+  give it Header Auth before activating its workflow.
 - The owner's call: delete the WhatsApp alert workflow and the unused `RI Work` credential;
   revoke and replace the bot token that was pasted into a chat on 2026-10-16.
