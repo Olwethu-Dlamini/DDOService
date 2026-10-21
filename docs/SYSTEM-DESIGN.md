@@ -293,6 +293,8 @@ Each figure states what was measured, where, and when.
 | Mistral cold load | 48.1s | Same request, model not in memory | 2026-10-07 |
 | Estimated RAG chatbot reply | 1.5-3 minutes | **Estimate, not measured**: ~1,500 tokens read + an agent that calls the model twice | 2026-10-07 |
 | WAHA memory | 300MB laptop / 408MB VM | `docker stats`; laptop with a session waiting for a QR code, VM with no session | 2026-10-07 |
+| Public webhook round trip | median 0.153s (0.132-0.470s, n=10) via `https://n8n.22112002.xyz`; median 0.061s (0.053-0.283s, n=10) over Tailscale | `curl -w %{time_total}` from the laptop, `POST /webhook/whatsapp` without the secret (403); Cloudflare edge JNB | 2026-10-21 11:38 SAST |
+| Memory for public webhooks | 0 on `ai` (no new container); on srv1 Caddy 64MB and cloudflared 24MB, both already running for the websites | `systemctl show -p MemoryCurrent` on srv1 | 2026-10-21 11:38 SAST |
 
 ---
 
@@ -309,6 +311,10 @@ Each figure states what was measured, where, and when.
 | **Quantization (Q4_K_M)** | Storing a model's weights in 4 bits instead of 16, so a 7B model fits in about 4.4GB |
 | **Keep-alive** | How long Ollama keeps a model in RAM after its last request |
 | **Linked device** | A second device using your WhatsApp number (like WhatsApp Web); WAHA is one |
+| **CGNAT** | Carrier-grade NAT: the ISP shares one public IP across many homes, so nothing on the internet can open a connection to a home machine, and port forwarding can't help |
+| **Cloudflare Tunnel** | `cloudflared` on srv1 opens an outbound connection to Cloudflare and keeps it open; Cloudflare sends visitors of the domain back down it. Works behind CGNAT |
+| **Reverse proxy** | A server that receives requests and forwards them to another one, choosing by hostname and path (Caddy on srv1). It is where public webhooks are filtered |
+| **`WEBHOOK_URL`** | The address n8n prints on webhook nodes. It changes the URL n8n shows, not what n8n listens on |
 
 ---
 
