@@ -213,7 +213,7 @@ Anything at `/webhook/` is now reachable by anyone on the internet who guesses o
 | `404` on `/webhook-test/...` | n8n | The editor is not listening. Click *Listen for test event*, then send within 2 minutes |
 | `500 {"message":"No Respond to Webhook node found in the workflow"}` | n8n | The Webhook node is set to *Respond: Using 'Respond to Webhook' node* and the workflow has none. n8n checks this **before** the header, so the 500 says nothing about your secret. Add the node, or set *Respond: Immediately* |
 | `403 Authorization data is wrong!` | n8n | The header name or value doesn't match the Header Auth credential. Case matters |
-| `500`, and the run in n8n's *Executions* shows `Wrong type: '0' is a number but was expecting a string` | n8n If node | The course sent `"total": 0`, a number, and the If node checked it as a *String* with strict types. Use *Number → exists*, or turn on *Convert types where required* |
+| `500`, and the run in n8n's *Executions* shows `Wrong type: '0' is a number but was expecting a string` | n8n If node | The course sent `"total": 0`, a number, and the If node checked it as a *String* with strict types. Check it as *Number → is not empty* (the fix used), or turn on *Convert types where required* |
 | `530` from Cloudflare | Cloudflare | The tunnel is down: srv1 is off, or `cloudflared` is restarting |
 
 To see what a caller actually sent, open the failed run in n8n's *Executions* list (failed runs
