@@ -59,6 +59,9 @@ flowchart TB
     bridge -- "SMTP STARTTLS<br/>security level 1" --> relay["Work mail relay"]
     backup -- "rclone, encrypted" --> offsite["Off-site storage"]
     laptop["Laptop (Tailscale)"] -. "http://ai:5678 / :3000" .-> n8n
+    caller["Caller on the internet<br/>(course checker, Postman)"] -- "https://n8n.22112002.xyz/webhook/..." --> cf["Cloudflare edge"]
+    cf -- "tunnel (outbound from srv1)" --> srv1["srv1: cloudflared + Caddy<br/>passes /webhook/ only (D16)"]
+    srv1 -- "http://10.0.0.31:5678" --> n8n
 ```
 
 ### The layers, bottom to top
@@ -87,7 +90,7 @@ this repo.
 
 | Service | Job | Port | Reachable from | Auth |
 |---|---|---|---|---|
-| **n8n** | Runs every workflow: schedules, webhooks, API calls | 5678 | LAN + tailnet | Owner account (created on first visit) |
+| **n8n** | Runs every workflow: schedules, webhooks, API calls | 5678 | LAN + tailnet; **webhook paths only** also from the internet at `https://n8n.22112002.xyz` (D16) | Owner account (created on first visit); each webhook its own secret header |
 | **WAHA** | Turns WhatsApp into an HTTP API: send with a POST, receive as a webhook | 3000 | LAN + tailnet | `X-Api-Key` header; dashboard password |
 | **Ollama** | Runs language models locally (Mistral 7B, Q4_K_M) | 11434 | **The VM only** (`127.0.0.1`) | None, which is why it is not published |
 | **Qdrant** | Stores text as vectors and finds the closest matches (the "retrieval" in RAG) | 6333 | LAN + tailnet | `api-key` header |
@@ -101,7 +104,14 @@ own DNS, so no IP address is ever hard-coded.
 
 ### Trust boundaries
 
-- **Nothing is exposed to the internet.** The VM is reached over the LAN (`10.0.0.31`) or
+- **Only n8n's webhooks are exposed to the internet** (D16, since 2026-10-21). The VM itself has
+  no public IP and no open port: the home line is behind CGNAT. `https://n8n.22112002.xyz`
+  reaches it through the Cloudflare Tunnel that srv1 dials out, and Caddy on srv1 passes on only
+  `/webhook/*` and `/webhook-test/*`; every other path, the editor and API included, gets 404.
+  The lock on each webhook is its secret header, so **a webhook without authentication is open
+  to anyone**. `stack/public-webhook-check.sh` checks both from outside;
+  [`PUBLIC-WEBHOOKS.md`](PUBLIC-WEBHOOKS.md) has the rules.
+- **Everything else is reached over the LAN** (`10.0.0.31`) or
   [Tailscale](https://tailscale.com) (`ai`, `100.120.56.93`). Tailscale is a private, encrypted
   network between your own devices; SSH over it needs a browser approval per session
   ("Tailscale SSH check").
