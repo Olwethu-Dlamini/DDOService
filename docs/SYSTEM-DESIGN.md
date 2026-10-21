@@ -8,7 +8,7 @@ It is updated with every change to the system, and the git history of this repo 
 record. Business data (customer names, numbers, the spreadsheet itself) never goes in this repo,
 which is public.
 
-**Last updated:** 2026-10-07
+**Last updated:** 2026-10-21
 
 ---
 
@@ -241,6 +241,7 @@ add a new entry rather than editing the old one.
 | D13 | 2026-10-16 | The owner's Telegram messages reach n8n through the **bridge** (long polling), and email is **sent by the bridge**, not by n8n | Tailscale Funnel + n8n's Telegram Trigger; n8n's Send Email node; a mail app on the phone (offered, declined) | Long polling keeps D5 (no public URL). The work relay's 1024-bit TLS key is refused by Node (`ERR_SSL_DH_KEY_TOO_SMALL`, Node 26) and n8n's Send Email node can't set `In-Reply-To`, so replies wouldn't thread; a Python sender does both in 300 lines, about 25MB |
 | D14 | 2026-10-16 | The bridge **Bcc's the sender** on every email it sends (`MAIL_COPY_TO`, default `self`) | Append to an IMAP Sent folder; a sent log on the VM; switch the mail client to IMAP | SMTP keeps no copy, and the owner's client reads the account over POP3, which has no server folders. A Bcc reaches the mailbox and the client within a minute, needs no new part, and the client files it to Sent with one filter. The alert workflow skips these copies by the `.bridge` mark in their Message-ID |
 | D15 | 2026-10-20 | A reply typed in Telegram is a **reply-all**; `/reply` answers the sender only | Sender only (as before); sender only with a command for everyone | The owner's choice: replies were leaving the others on the thread out. The workflow lists To + Cc minus the owner and the sender; the bridge drops the sender's own address and anyone already in To from Cc as a guard and answers with the recipients it used, so the Telegram confirmation names them. Bcc recipients of the original can't be included: a received email doesn't carry them |
+| D16 | 2026-10-21 | n8n's **webhooks** (`/webhook/`, `/webhook-test/`) are public at `https://n8n.22112002.xyz`, through the **Cloudflare Tunnel and Caddy already running on srv1**; the editor, login and API stay on Tailscale. Updates D5 | Keep D5 (Tailscale only); Tailscale Funnel; a `cloudflared` container on `ai`; publishing the whole n8n | Callers on the internet (an n8n course's checker, Postman's web app) could not resolve `ai`. The owner's own domain was wanted, which Funnel can't give (`*.ts.net` only). srv1 already holds a tunnel and Caddy for the owner's websites, so this costs `ai` no memory and follows the series' pattern: Caddy filters paths, as it hides Stalwart's `/admin`. Every webhook keeps its secret header (403 without it). Trade-off: public webhooks also need srv1 up. Guide: [`PUBLIC-WEBHOOKS.md`](PUBLIC-WEBHOOKS.md) |
 
 ---
 
