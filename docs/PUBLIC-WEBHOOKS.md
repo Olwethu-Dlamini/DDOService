@@ -185,7 +185,8 @@ the n8n redeploy: 11 of 11 ok.
    *Value*. Or use the **Authorization** tab, type *API Key*, *Add to: Header*.
 
 The n8n course's "Section 2 - Order Webhook Processor" passed its online check this way on
-2026-10-21.
+2026-10-21. On 2026-10-22 its validation and Step 2 checks surfaced three more errors, listed at the end
+of section 6.
 
 ---
 
@@ -215,6 +216,10 @@ Anything at `/webhook/` is now reachable by anyone on the internet who guesses o
 | `403 Authorization data is wrong!` | n8n | The header name or value doesn't match the Header Auth credential. Case matters |
 | `500`, and the run in n8n's *Executions* shows `Wrong type: '0' is a number but was expecting a string` | n8n If node | The course sent `"total": 0`, a number, and the If node checked it as a *String* with strict types. Check it as *Number → is not empty* (the fix used), or turn on *Convert types where required* |
 | `530` from Cloudflare | Cloudflare | The tunnel is down: srv1 is off, or `cloudflared` is restarting |
+| `webhook_url is not valid. Please ensure your hostname resolves and is publicly accessible. Status Code: 500` | Course form | Misleading. The hostname resolved and the request reached n8n (2026-10-22). The checker calls any non-2xx "not public". The 500 was n8n's; open the failed run in *Executions* to see which node broke |
+| `500 {"message":"Error in workflow"}`, and the run shows `Invalid JSON in 'Response Body' field` on a Respond to Webhook node | n8n | The response body was a JSON *text* template with `{{ }}` placeholders pasted in unquoted. When a placeholder resolved to nothing the text read `"stored": ,`. Fix used: make the whole body one expression that returns an object, `{{ { status: 'accepted', stored: $('X').item.json.stored, ... } }}`. A missing field becomes `null` instead of breaking the JSON |
+| Checker: `Expected stored to be true, got true` | Course form | The field was the string `"true"`. In the Set node, the assignment's *Type* was String. Set it to Boolean; for a nested record (`stored_order`) use Object with `{{ $json }}`, not a `toJsonString()` string |
+| A run passes in the editor but fails from the internet | n8n | Production runs differ from *Test workflow*: pinned data is ignored, and a sub-workflow's successful runs are not stored (`EXECUTIONS_DATA_SAVE_ON_SUCCESS=none` in the compose file), so the Execute Workflow node's input is invisible. To look inside once, set *Save successful production executions: Yes* in that sub-workflow's settings, send one request, then turn it off |
 
 To see what a caller actually sent, open the failed run in n8n's *Executions* list (failed runs
 are kept for 7 days; successful ones are not stored, see section 5 of the design doc). Or, from
