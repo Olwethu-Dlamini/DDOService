@@ -7,6 +7,8 @@ model (Ollama + Mistral 7B), Qdrant, a WhatsApp gateway (WAHA) and a Telegram/ma
 piece was chosen, the memory budget, and what went wrong while building it.
 [`docs/DATA-STORE-OPTIONS.md`](docs/DATA-STORE-OPTIONS.md) compares where workflow data can live
 (Google Sheets, n8n Data Tables, Grist, NocoDB, Baserow), with measured memory costs.
+Can't reach `ai`, or n8n shows failed executions? Run `stack/ai-check.sh` and see
+[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
 | Order | File | Run on | What it does |
 |---|---|---|---|
@@ -19,6 +21,7 @@ piece was chosen, the memory budget, and what went wrong while building it.
 | 7 | [`mail-poll/install.sh`](mail-poll/install.sh) | The VM, as root | Checks a POP3 mailbox every minute and posts each new email's headers and the start of its text to an n8n webhook, for mail servers n8n's IMAP trigger can't follow. `--update` refreshes the script only |
 | 8 | [`stack/bridge/bridge.py`](stack/bridge/bridge.py) | Started by `deploy.sh` when `TELEGRAM_BOT_TOKEN` is set | Telegram in, email out: long-polls a Telegram bot and posts the owner's messages to n8n; sends email for n8n through a mail relay, including old relays modern TLS defaults refuse |
 | 9 | [`stack/bridge/relay-test.sh`](stack/bridge/relay-test.sh) | The VM, as root | Tests the relay login the bridge container holds, without typing or printing the password |
+| 10 | [`stack/ai-check.sh`](stack/ai-check.sh) | The laptop, on the tailnet | Finds which layer is down when `ai` or n8n can't be reached (this machine's internet, Tailscale, n8n), then lists n8n's recent failed executions with the failing node and error |
 
 Each script can be run straight from GitHub, which avoids copy-pasting into the Proxmox console:
 
