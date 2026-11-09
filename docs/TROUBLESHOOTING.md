@@ -126,7 +126,7 @@ online, and the n8n editor showed failed executions. It looked like the server w
 |---|---|
 | 06:58 | The laptop's Wi-Fi access point stopped sending beacons and vanished (`ssid-not-found`). From then on: DNS timeouts, `UDP is blocked`, the Tailscale relay and coordination server unreachable |
 | 06:58 to 07:31 | Two attempts to open n8n timed out. tailscaled logged `online=yes, lastRecv=33m15s` for `ai`: listed online, silent for 33 minutes |
-| 07:31 | The laptop joined another network; the path to `ai` came back within 30 seconds |
+| 07:31 | The laptop joined another network at 07:31:12; the path to `ai` was back at 07:31:54 |
 | afterwards | Every check passed. `ai`'s disco key was unchanged, so its tailscaled never restarted |
 
 **The failed executions** were unrelated: all were `manual` runs from the editor while a
