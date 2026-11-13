@@ -43,6 +43,9 @@ services:
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-2m}
       - OLLAMA_MAX_LOADED_MODELS=1
       - OLLAMA_NUM_PARALLEL=1
+      # One Go thread for Ollama's server: it loads a model with several readers in parallel,
+      # which makes a spinning disk seek instead of read (ollama/ollama#14164). Empty = Go's default.
+      - GOMAXPROCS=${OLLAMA_GOMAXPROCS-1}
     cpus: ${OLLAMA_CPUS:-3}
     mem_limit: ${OLLAMA_MEM:-6g}
     restart: unless-stopped
