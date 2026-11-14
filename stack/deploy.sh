@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the automation stack (Qdrant + Ollama + n8n + WAHA + bridge) to /opt/automation,
+# Deploy the automation stack (Qdrant + Ollama + n8n + WAHA + bridge + SearXNG + Vane) to /opt/automation,
 # pull the model, then run the guide's Part 5 checks.
 #
 #   sudo bash deploy.sh
@@ -25,6 +25,8 @@ echo "==> Fetching compose file and the bridge"
 curl -fsSL "$RAW/docker-compose.yml" -o docker-compose.yml
 mkdir -p bridge
 curl -fsSL "$RAW/bridge/bridge.py" -o bridge/bridge.py
+mkdir -p searxng
+curl -fsSL "$RAW/searxng/settings.yml" -o searxng/settings.yml
 
 curl -fsSL "$RAW/.env.example" -o .env.example
 if [[ ! -f .env ]]; then
@@ -40,7 +42,7 @@ else
   done < .env.example
 fi
 # Fill every empty secret with a new random value.
-for key in QDRANT_API_KEY WAHA_API_KEY WAHA_DASHBOARD_PASSWORD WAHA_HOOK_SECRET BRIDGE_SECRET; do
+for key in QDRANT_API_KEY WAHA_API_KEY WAHA_DASHBOARD_PASSWORD WAHA_HOOK_SECRET BRIDGE_SECRET SEARXNG_SECRET; do
   if grep -q "^${key}=$" .env; then
     sed -i "s/^${key}=$/${key}=$(openssl rand -hex 32)/" .env
     echo "    generated ${key}"
@@ -86,6 +88,20 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
+echo "==> Waiting for SearXNG and Vane"
+for _ in $(seq 1 30); do
+  curl -fs -o /dev/null http://localhost:8888/healthz && break
+  sleep 2
+done
+for _ in $(seq 1 60); do
+  curl -fs -o /dev/null http://localhost:3001/ && break
+  sleep 2
+done
+# Vane has no login: reach it over Tailscale only, with HTTPS from Tailscale.
+if command -v tailscale &>/dev/null; then
+  tailscale serve --bg --https=8443 http://127.0.0.1:3001 >/dev/null && echo "    tailscale serve: Vane on port 8443"
+fi
+
 echo
 echo "==> Checks"
 printf '  Qdrant:  '; curl -fs http://localhost:6333/healthz || echo "NOT OK"; echo
@@ -99,6 +115,11 @@ if [[ -n ${TELEGRAM_BOT_TOKEN:-} ]]; then
     sleep 2
   done || echo "NOT OK (docker logs bridge)"
 fi
+# A real query: SearXNG must return JSON with results, or Vane and n8n get nothing.
+printf '  SearXNG: '
+n=$(curl -fs 'http://localhost:8888/search?q=proxmox&format=json' | grep -o '"url":' | wc -l || true)
+[[ ${n:-0} -gt 0 ]] && echo "$n results for 'proxmox'" || echo "NOT OK (no JSON results: docker logs searxng)"
+printf '  Vane:    '; curl -fs -o /dev/null -w 'HTTP %{http_code}\n' http://localhost:3001/ || echo "NOT OK (docker logs vane)"
 echo
 "${COMPOSE[@]}" ps
 echo
@@ -110,4 +131,6 @@ echo "  n8n:              http://${N8N_HOST:-ai}:5678   (create the owner accoun
 [[ -n ${N8N_WEBHOOK_URL:-} ]] && echo "  Public webhooks:  ${N8N_WEBHOOK_URL}webhook/...   (check from any machine: stack/public-webhook-check.sh)"
 echo "  Qdrant dashboard: http://${N8N_HOST:-ai}:6333/dashboard   (API key in $DIR/.env)"
 echo "  WhatsApp:         http://${N8N_HOST:-ai}:3000/dashboard   (user admin, password WAHA_DASHBOARD_PASSWORD in $DIR/.env)"
-echo "  In n8n, use Qdrant URL http://qdrant:6333, Ollama URL http://ollama:11434, WAHA URL http://waha:3000"
+echo "  In n8n, use Qdrant URL http://qdrant:6333, Ollama URL http://ollama:11434, WAHA URL http://waha:3000, SearXNG URL http://searxng:8080"
+ts=$(tailscale status --self=true --peers=false --json 2>/dev/null | grep -m1 -o '"DNSName": *"[^"]*"' | cut -d'"' -f4 | sed 's/\.$//' || true)
+echo "  Vane:             https://${ts:-ai.your-tailnet.ts.net}:8443   (first visit: choose Ollama, URL http://ollama:11434, and the model)"

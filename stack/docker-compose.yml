@@ -1,5 +1,6 @@
 # Automation stack: Qdrant + Ollama (Mistral 7B) + n8n + WAHA (WhatsApp)
-# + bridge (Telegram <-> n8n <-> mail relay, profile "telegram").
+# + bridge (Telegram <-> n8n <-> mail relay, profile "telegram")
+# + SearXNG and Vane (local web search and answers with sources).
 # Part 5 of automation-money-guide-research.html, corrected for current images:
 #   - no Qdrant curl healthcheck (the image has no curl; endpoint is /healthz)
 #   - no qdrant-config.yaml mount (the guide never creates it)
@@ -9,8 +10,9 @@
 #   - limits sized from .env for the 12GB / 4-core VM
 #
 # Services reach each other by name: n8n uses http://qdrant:6333,
-# http://ollama:11434, http://waha:3000 and http://bridge:8025; WAHA and the
-# bridge post to http://n8n:5678.
+# http://ollama:11434, http://waha:3000, http://bridge:8025 and
+# http://searxng:8080; WAHA and the bridge post to http://n8n:5678; Vane uses
+# http://searxng:8080 and http://ollama:11434.
 #
 # Memory: every service has a cap, and the budget is in docs/SYSTEM-DESIGN.md.
 # Ollama is the only large consumer, so it unloads its model when idle.
@@ -149,8 +151,49 @@ services:
       - n8n
     restart: unless-stopped
 
+  searxng:
+    # Private metasearch: forwards the search words to Google, Bing and the
+    # rest without cookies or an account, and returns the merged results as
+    # JSON for Vane and n8n's SearXNG tool. Settings: stack/searxng/settings.yml.
+    # Published on the VM only, for deploy.sh's check.
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "127.0.0.1:8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+      - searxng_cache:/var/cache/searxng
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:?set SEARXNG_SECRET in .env}
+    cpus: ${SEARXNG_CPUS:-0.5}
+    mem_limit: ${SEARXNG_MEM:-384m}
+    restart: unless-stopped
+
+  vane:
+    # Answers with sources, like Perplexity, from SearXNG's results and the
+    # local model. It has no login, so it is published on the VM only and
+    # reached over Tailscale (deploy.sh runs `tailscale serve` on 8443).
+    # The model and Ollama's URL (http://ollama:11434) are set once in its
+    # setup screen; they live in the vane_data volume.
+    image: itzcrazykns1337/vane:${VANE_TAG:-slim-latest}
+    container_name: vane
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - vane_data:/home/vane/data
+    environment:
+      - SEARXNG_API_URL=http://searxng:8080
+    cpus: ${VANE_CPUS:-1}
+    mem_limit: ${VANE_MEM:-1g}
+    depends_on:
+      - searxng
+      - ollama
+    restart: unless-stopped
+
 volumes:
   qdrant_storage:
   ollama_models:
   n8n_data:
   waha_sessions:
+  searxng_cache:
+  vane_data:

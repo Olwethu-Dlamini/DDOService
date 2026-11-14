@@ -73,6 +73,8 @@ upsert() {
 echo "==> Shared credentials"
 upsert "Ollama (local)" ollamaApi '{"baseUrl":"http://ollama:11434"}'
 upsert "Qdrant (local)" qdrantApi "{\"qdrantUrl\":\"http://qdrant:6333\",\"apiKey\":\"$QDRANT_API_KEY\"}"
+# SearXNG has no secret: the AI Agent's SearXNG tool only needs the URL.
+upsert "SearXNG (local)" searXngApi '{"apiUrl":"http://searxng:8080"}'
 upsert "WAHA" httpHeaderAuth "{\"name\":\"X-Api-Key\",\"value\":\"$WAHA_API_KEY\"}"
 upsert "WAHA webhook secret" httpHeaderAuth "{\"name\":\"X-Waha-Secret\",\"value\":\"$WAHA_HOOK_SECRET\"}"
 # Telegram is optional: only the work-email alerts use it. The token comes from
