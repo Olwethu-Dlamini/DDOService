@@ -2,7 +2,7 @@
 # deploy.sh fetches this into /opt/automation/searxng/, which is mounted as
 # /etc/searxng. Everything not set here keeps SearXNG's defaults.
 #
-# Vane and n8n's SearXNG tool read results as JSON, which SearXNG turns off by
+# n8n's SearXNG tool reads results as JSON, which SearXNG turns off by
 # default. The secret key comes from SEARXNG_SECRET in .env (deploy.sh makes it).
 # No published port except on 127.0.0.1, so the bot limiter (and the Valkey
 # database it needs) stays off.

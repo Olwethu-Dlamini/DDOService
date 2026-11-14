@@ -2,7 +2,7 @@
 
 Scripts and docs for a self-hosted automation server: a Proxmox VM running n8n, a local language
 model (Ollama + Mistral 7B), Qdrant, a WhatsApp gateway (WAHA), a Telegram/mail bridge, and local
-web search (SearXNG) with answers and sources (Vane), so questions and answers never leave the VM.
+web search (SearXNG) that n8n's AI agents call, so prompts and answers never leave the VM.
 
 **Start with [`docs/SYSTEM-DESIGN.md`](docs/SYSTEM-DESIGN.md)**: how it fits together, why each
 piece was chosen, the memory budget, and what went wrong while building it.
