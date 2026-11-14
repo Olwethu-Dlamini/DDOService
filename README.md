@@ -1,7 +1,8 @@
 # DDOService
 
 Scripts and docs for a self-hosted automation server: a Proxmox VM running n8n, a local language
-model (Ollama + Mistral 7B), Qdrant, a WhatsApp gateway (WAHA) and a Telegram/mail bridge.
+model (Ollama + Mistral 7B), Qdrant, a WhatsApp gateway (WAHA), a Telegram/mail bridge, and local
+web search (SearXNG) with answers and sources (Vane), so questions and answers never leave the VM.
 
 **Start with [`docs/SYSTEM-DESIGN.md`](docs/SYSTEM-DESIGN.md)**: how it fits together, why each
 piece was chosen, the memory budget, and what went wrong while building it.
@@ -15,7 +16,7 @@ Can't reach `ai`, or n8n shows failed executions? Run `stack/ai-check.sh` and se
 | 1 | [`post-install.sh`](post-install.sh) | A fresh Debian 13 VM, as root | Essentials, SSH, QEMU guest agent, sudo, memory tuning |
 | 2 | [`docker-install.sh`](docker-install.sh) | The VM, as root | Docker Engine and the Compose plugin |
 | 3 | [`stack/deploy.sh`](stack/deploy.sh) | The VM, as root | Deploys the stack to `/opt/automation`, generates its secrets, pulls the model, runs checks |
-| 4 | [`stack/n8n-credentials.sh`](stack/n8n-credentials.sh) | The VM, as root | Creates n8n's shared credentials (Ollama, Qdrant, WAHA) from the stack's `.env`, so the secrets never leave the VM |
+| 4 | [`stack/n8n-credentials.sh`](stack/n8n-credentials.sh) | The VM, as root | Creates n8n's shared credentials (Ollama, Qdrant, WAHA, SearXNG) from the stack's `.env`, so the secrets never leave the VM |
 | 5 | [`stack/whatsapp-link.sh`](stack/whatsapp-link.sh) | The VM, as root | Links a WhatsApp number to WAHA with a pairing code typed on the phone, without the dashboard or a QR scan |
 | 6 | [`backup/`](backup/) | The VM, as root | Nightly backup to Google Drive or self-hosted storage, and how to restore |
 | 7 | [`mail-poll/install.sh`](mail-poll/install.sh) | The VM, as root | Checks a POP3 mailbox every minute and posts each new email's headers and the start of its text to an n8n webhook, for mail servers n8n's IMAP trigger can't follow. `--update` refreshes the script only |

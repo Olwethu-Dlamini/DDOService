@@ -189,6 +189,8 @@ misbehaving service is killed and restarted instead of starving the rest.
 | WAHA | 768MB | **350MB of its own memory** once linked and synced; the cgroup reads 765MB because 386MB more is disk cache from the sync, which the kernel reclaims (it hit the cap 711 times with 0 OOM kills and 54ms of total stall). Before linking: 408MB on the VM, 300MB on the laptop. Unchanged after 9 days: 355MB own, 763MB with cache, still sitting at the cap | cgroup `memory.stat` (`anon`), `memory.events`, `memory.pressure` on the VM after linking, 2026-10-07; again 2026-10-16 |
 | mail-poll | 64MB (`MemoryMax`) | One short Python run a minute; not measured yet | |
 | bridge | 128MB | **23MB of its own** on the VM, 27MB with cache, 30MB peak, after its first sends; 24MB as one process on the laptop | cgroup `memory.stat`/`memory.peak` on the VM, 2026-10-16 10:50 |
+| SearXNG | 384MB | Not measured yet (added 2026-11-14). A Python web app with no database; the cap is a starting guess | |
+| Vane | 1GB | Not measured yet (added 2026-11-14). A Node.js web app; the `slim-latest` image is 3.7GB compressed on Docker Hub, so the disk cost is real even if the memory is small | |
 | Whole VM | 12GB | 1.2GB used in total, containers included, with Mistral unloaded. 1.76GB used after 14 days up, 10GB as reclaimable cache, swap 0, memory pressure 0.00, disk 31GB of 283GB | `free -m` on the VM, 2026-10-07; `free -m`, `/proc/pressure/memory`, `df` 2026-10-16 |
 
 **The rules that keep it inside 12GB:**
