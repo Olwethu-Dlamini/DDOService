@@ -60,6 +60,10 @@ services:
       - DB_TYPE=sqlite
       - N8N_SECURE_COOKIE=false
       - N8N_HOST=${N8N_HOST:-ai}
+      # The editor's own address. Google and Microsoft sign-in send the browser
+      # back to <this>/rest/oauth2-credential/callback and accept only https or
+      # localhost, so set it to the Tailscale HTTPS name (tailscale serve).
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-}
       # The URL n8n prints on webhook nodes. N8N_WEBHOOK_URL is the public one
       # (Cloudflare Tunnel on srv1, webhooks only); empty = Tailscale only.
       - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://${N8N_HOST:-ai}:5678/}
